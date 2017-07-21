@@ -11,11 +11,6 @@ class Menu(object):
     There is no reason to instantiate Menu itself. It should be used as a
     parent class for a menu system that you define yourself.
 
-    Note that if you assign a function to sort_key, it will be assigned as a
-    bound method of the class. So instead of the usual one parameter for a key
-    parameter of the sort method, it should take two: the instance and the normal
-    sort key parameter.
-
     Class Attributes:
     intro: Text displayed at the beginning of the menu loop. (str)
     prompt: Text displayed when getting user choices. (str)
@@ -153,7 +148,7 @@ The menuloop method, corresponding to Cmd's cmdloop method, is the meat of the M
 
 Then we get to the actual processing loop. If there are any choices in the choice_queue attribute, those are taken first. Otherwise, the menu (self.text) is displayed, then the status attribute is displayed if there is one, and then a simple input gets the user's choice.
 
-Once the choice is obtained, it is processed in three steps. First, the prechoice method is run, allowing for changes to the choice. Then the onechoice method is run, to actually process the choice. This returns a stop value, which if True will end the menu loop. Then the postchoice method is run, allowing for chanes to the stop value. 
+Once the choice is obtained, it is processed in three steps. First, the prechoice method is run, allowing for changes to the choice. Then the onechoice method is run, to actually process the choice. This returns a stop value, which if True will end the menu loop. Then the postchoice method is run, allowing for changes to the stop value. 
 
 Finally, the stop value is checked, and the loop either continues or ends.
 
@@ -208,7 +203,7 @@ The onechoice method does the determination of which method handles a given user
         pass
 [/python]
 
-The post- and pre- methods for Menu are analagous to the ones in Cmd. As you can see, they are just stub methods, waiting to be overridden by sub-classes of Menu.
+The post- and pre- methods for Menu are analogous to the ones in Cmd. As you can see, they are just stub methods, waiting to be overridden by sub-classes of Menu.
 
 [python]
     def set_menu(self):
@@ -252,6 +247,6 @@ Note that you could theoretically modify this data (probably in postchoice) to c
         return False
 [/python]
 
-Finally, there is the unrecognized method, which handles any responses that aren't in the methods dictionary. It just updates the status with a message. This method is meant to be overridden. Really, with this class you just don't want to mess with __init__, menuloop, onechoice, or set_menu. And you shouldn't need to. Allmost any functionality you would get by modifying those four methods should be achievable by modifying one of the other methods.
+Finally, there is the unrecognized method, which handles any responses that aren't in the methods dictionary. It just updates the status with a message. This method is meant to be overridden. Really, with this class you just don't want to mess with __init__, menuloop, onechoice, or set_menu. And you shouldn't need to. Almost any functionality you would get by modifying those four methods should be achievable by modifying one of the other methods.
 
 In the next post I will give a basic example of a menu system using this class.

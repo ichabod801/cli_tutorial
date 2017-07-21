@@ -48,11 +48,6 @@ class Menu(object):
     There is no reason to instantiate Menu itself. It should be used as a
     parent class for a menu system that you define yourself.
 
-    Note that if you assign a function to sort_key, it will be assigned as a
-    bound method of the class. So instead of the usual one parameter for a key
-    parameter of the sort method, it should take two: the instance and the normal
-    sort key parameter.
-
     Class Attributes:
     intro: Text displayed at the beginning of the menu loop. (str)
     prompt: Text displayed when getting user choices. (str)

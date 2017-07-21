@@ -81,7 +81,7 @@ class MontyMenu(Menu):
 
 All we had to do was make them methods, give them a doc string equal to what should be shown menu, and the Menu class takes care of everything else.
 
-Let's look at something a little more complicated, but redoing the integer graph menu with the Menu class:
+Let's look at something a little more complicated, like redoing the integer graph menu with the Menu class:
 
 [python]
 class NumberMenu(Menu):
