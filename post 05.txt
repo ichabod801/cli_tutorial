@@ -1,0 +1,172 @@
+So let's make more use of the Cmd class features. (The code for this post is in cmd_example2.py on the GitHub repository) The first thing you might have noticed is that when the program wants a command from you, it prints '(Cmd) '. That doesn't really fit our program. However, we can change what it prints there by modifying the prompt class attribute:
+
+[python]
+class (Maze):
+    # ...
+
+    directions = {'e': 'east', 'n': 'north', 's': 'south', 'w': 'west'}
+    prompt = 'In the maze: '
+[/python]
+
+There is also and intro class attribute of Cmd. If it is non-empty it is printed before the command processing starts. So we can move our introductory text to a class attribute as well.
+
+[python]
+class (Maze):
+    # ...
+
+    directions = {'e': 'east', 'n': 'north', 's': 'south', 'w': 'west'}
+    intro = 'You are in a maze.\nYou have a torch, but it barely lights past the end of your hand.'
+    prompt = 'In the maze: '
+[/python]
+
+And we can remove that from our preloop method:
+
+[python]
+def preloop(self):
+    """ Prep for the command loop. (None)"""
+    # Extract the information from the MAZE global.
+    self.map = MAZE['map']
+    self.x = MAZE['start'][0]
+    self.y = MAZE['start'][1]
+    self.end = MAZE['end']
+    # Get the moves for the start position
+    self.current = self.map[self.y][self.x]
+    self.show_directions()
+[/python]
+
+If you try this, you will note that the intro text gets a bit messed up:
+
+[output]You are in a hallway. You can move south or east.
+You are in a maze.
+You have a torch, but it barely lights pas the end of your hand.[/output]
+
+The order of our text as changed. It doesn't really make sense to describe the current spot you are in in the maze before you describe that you are in a maze. The problem here is that the Cmd class prints the intro after it processes preloop. To get around that we can modify intro in preloop:
+
+[python]
+def preloop(self):
+    """ Prep for the command loop. (None)"""
+    # Extract the information from the MAZE global.
+    self.map = MAZE['map']
+    self.x = MAZE['start'][0]
+    self.y = MAZE['start'][1]
+    self.end = MAZE['end']
+    # Get the moves for the start position
+    self.current = self.map[self.y][self.x]
+    self.intro = '{}\n{}'.format(self.intro, self.show_directions())
+[/python]
+
+Note that you can also modify intro by passing a non-None intro parameter to the cmdloop method when you call it. That will replace the intro attribute, but if you are modifying it in preloop, those modifications will still apply.
+
+There are other class attributes that Cmd uses. Most apply to how the default help is displayed. There is also identchars, which specifies which characters are allowed for command names. The first non-indentchar in a line of input is where Cmd splits the line into a command and the arguments. There is also the use_rawinput parameter, which comes into play with command completion. I never mess with that, and I'm not going to cover it here. You can check out the docs for the Cmd module if you are interested.
+
+You may have noticed trying to get through the maze (you did get through the maze, right?) that it can get pretty tedious typing out north and south and all that. Normally in a text puzzle like this (or many other command line interfaces) you would have aliases: shorter ways to type the various commands. One way to do this would make a do_n method, which just called do_north. However, we can use the precmd method to do this with less clutter:
+
+[python]
+def precmd(self, line):
+    """
+    Pre-command handling. (str)
+
+    Parameters:
+    line: The orignal user command input. (str)
+    """
+    # Replace alases with commands.
+    cmd, space, arg = line.partition(' ')
+    cmd = self.directions.get(cmd, cmd)
+    return '{} {}'.format(cmd, arg)
+[/python]
+
+As you can see from the helpful docstring, the original line of user input is sent to precmd. The precmd method is then supposed to return a line of text with the one that actually gets processed. In the example above, we split out the first word, and use the get method of the directions attribute to replace it (or not, if we can't). As you may recall, the directions method keys the full words for the directions to the single characters. So now we can type n, w, e, or s to move around the maze.
+
+The Cmd class actually already has two hardcoded aliases: ? and !. ? is an alias for help, and runs the do_help method. ! is an alias for shell, so it runs the do_shell method, if there is one. The base Cmd class has a do_help method, but does not have a do_shell method. I often put in a do_shell method that evals the argument. It's very handy in testing when your code does something odd but doesn't cause an error. Cmd was actually designed for a testing and prototyping platform, although I use it for the final interface on a lot of my programs. In any case, I left out the eval in this example, becuase I knew some of the regulars would have colonic spasms if I put it in.
+
+Note that before each command is entered, we want to display to the user the moves they can make from where they are. You might think that precmd is a good place to do something before the command. But if the original line of input is being sent to precmd, that means it's happening after the command is entered. The order in the command processing loop is get the input, run precmd on the input, run a method called onecmd on the result of precmd, and then run a method named postcmd on the result of onecmd (and the result of precmd).
+
+The onecmd method you don't generally need to overwrite, but we can use postcmd method to print the location information we want:
+
+[python]
+def postcmd(self, stop, line):
+    """
+    Post-command handling. (bool)
+
+    Parameters:
+    stop: A flag for stopping command processing. (bool)
+    line: The user command input. (str)
+    """
+    print(self.show_directions())
+    return stop
+[/python]
+
+Just remember to do it at the end of the postcmd method, in case earlier processing interferes with it. What earlier processing might that be. Note that the first parameter and the return value of postcmd is stop. If the return value of postcmd (stop) resolves to True, then the command loop stops processing. So this is a good place to determine if the command loop should stop processing. Currently the move method does that, but we can move that to postcmd:
+
+[python]
+def postcmd(self, stop, line):
+    """
+    Post-command handling. (bool)
+
+    Parameters:
+    stop: A flag for stopping command processing. (bool)
+    line: The user command input. (str)
+    """
+    # Check for a solution.
+    if (self.x, self.y) == self.end:
+        print('You made it out of the maze!')
+        stop = True
+    elif not stop:
+        print(self.show_directions())
+    return stop
+[/python]
+
+So now postcmd checks to see if you get to the end of the maze. If you don't, and there's no other reason to stop, it prints the possible moves from the current location. Why would there be another reason to stop? Maybe we've added a quit command for when people get tired of wandering around a dark maze:
+
+[python]
+def do_quit(self, arg):
+    """Give up and quit."""
+    return True
+[/python]
+
+At the moment there's no real reason to move the solution check to postcmd, because the only way to solve the maze is through the move method. But if you had a secret teleport command, you might have two ways to win. So let's add one:
+
+[python]
+def do_xyzzy(self, arg):
+    if random.random() < 0.23:
+        self.x = random.randrange(len(self.map[0]))
+        self.y = random.randrange(len(self.map))
+        print('Poof! You have been teleported!')
+    else:
+        print('Nothing happens.')
+[/python]
+
+So now there are two ways to get to the end, although xyzzy is rather unlikely (there is a 0.46% chance that any given use of xyzzy will win). Now we did want xyzzy to be secret. Since we gave it no docstring, the automatic help will return '*** No help on xyzzy', which is similar to what would be returned for a command with no do_ method, like fred. However, if we just type 'help', it will still give us a list of valid commands, including xyzzy. But we can override that too. Let's make a globabl constant with some help text:
+
+[python]
+# The text to display for general help.
+HELP_TEXT = """This is a maze game. The only info you get is what directions you can move from
+where you are. You may move by typing in any of the four cardinal compass
+points: north, south, east, or west. You may abbreviate any of these
+commands by just using the first letter: n, s, e, or w."""
+[/python]
+
+and then override the do_help command that processes help requests:
+
+[python]
+def do_help(self, arg):
+    """Get help on a command, or just help for general help."""
+    if arg:
+        super().do_help(arg)
+    else:
+        print(HELP_TEXT)
+[/python]
+
+Now our help text shows for general help, but the help text for commands is processed normally. This allows xyzzy to be the secret command it always should be.
+
+There are lots of other things you can override in Cmd that I have not shown here. I showed you precmd, preloop, and postcmd, so as you might expect there is a postloop method you can override as well. It takes no parameters and returns None, and is run just before the cmdloop method exits. 
+
+There is the emptyline method, which is run when a blank line is entered. By default it runs the last command entered, which is stored in the attribute lastcmd. There is also an attribute named cmdqueue, which is a list of strings. If cmdqueue is not empty, cmdloop pulls the first thing from cmdqueue and runs it instead of asking for input from the user. I often use cmdqueue by putting code in precmd to split the input by semi-colon if there is one, and assigning that to cmdqueue. This allows the user to enter multiple commands separated by semi-colons and have them all run sequentially.
+
+There is also the default method, which is run if there is no do_ method for the command supplied. I used this in a suite of solitaire games where you used 'play game-name' to play one of the games. I changed the default to check if the command was a game name and if so play that game, allowing the user to just type in the name of the game to play it.
+
+As I noted earlier, one of the original purposes of the Cmd class was as a testing frame work. As part of that, there are two parameters when creating an instance: stdin and stdout. These allow you to get the input from a file and send the output to another file. So you make a file of test commands, and then check the output to make sure it's correct. Note that this is not done by redirecting sys.stdin and sys.stdout. It just stores the files as self.stdin and self.stdout. That means that if you want to make use of this you can't use print or input in your methods, you need to use self.stdout.write or self.stdin.readline.
+
+Another thing similar to an alias is end of file. If an end of file character is received by the system, it tries to pass it to the do_EOF method. There isn't one in Cmd, but you can implement one if you want to do special processing at the end of file input with self.stdin.
+
+That pretty much covers the Cmd class, except the command completion stuff. The full code of the Cmd class is available in the documentation, and it's not that long (401 lines).

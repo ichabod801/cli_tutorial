@@ -1,0 +1,181 @@
+As I was saying before we were so rudely interrupted, there is a command based CLI that comes with Python. The menu based systems that I have shown you so far are like doing everything based on multiple choice questions. That limits you significantly. With a command based system, you have more options. It's more like short answer than multiple choice. The commands themselves are not really any different than the menu choices, but you can add arguments to them, and vary the actions and responses based on the arguments.
+
+The command based system that comes with Python is the cmd package. It has one class, Cmd, which provides a basic command processing loop. It also provides "hook" methods that allow you to customize how it processes the commands.
+
+The basic tool of the Cmd class is do methods. Say you type in 'foo 23 bar'. The Cmd class splits that in to the command ('foo') and the arguments ('23 bar'). Then it searches for the 'do_foo' method, and runs it with the arguments as a parameter. If no do_foo method has been provided to the Cmd subclass, it sends the full input to the 'default' method for processing.
+
+Here is a simple maze that I put together as a Cmd subclass (this code is in cmd_example.py on the GitHub repository):
+
+[python]
+"""
+cmd_example.py
+
+An example of using the cmd module.
+
+This will be a simple maze game, using the below maze stolen from Wikipedia.
+
++   +-------+-----------+---------------+
+|           |           |               |
+|   +---+   |   +---+   +   +---+---+   |
+|   |       |       |       |   |       |
+|   +---+---+---+   +---+   +   |   +---+
+|       |       |       |       |   |   |
++---+   |   +---+   +   +---+---+   +   |
+|           |       |       |           |
+|   +-------+   +   +---+---+   +-------+
+|               |       |               |
++---------------+-------+-----------+   +
+
+Constants:
+MAP: What directions you can move from each cell in the maze. (list of list)
+MAZE: The details of the maze to solve. (dict)
+
+Classes:
+Maze: A maze game. (cmd.Cmd)
+"""
+
+import cmd
+import random
+
+# What directions you can move from each cell in the maze.
+MAP = [['se', 'ew', 'ws', 'es', 'we', 'ws', 'es', 'we', 'we', 'ws'],
+    ['sn', 'e', 'wn', 'ne', 'sw', 'ne', 'wns', 's', 'se', 'nw'],
+    ['ne', 'sw', 'se', 'w', 'nse', 'ws', 'en', 'wn', 'ns', 's'],
+    ['se', 'wen', 'wn', 'se', 'nsw', 'ne', 'w', 'se', 'ewn', 'wn'],
+    ['ne', 'ew', 'ew', 'nw', 'ne', 'w', 'e', 'wen', 'ew', 'w']]
+# The details of the maze to solve.
+MAZE = {'map': MAP, 'start': (0, 0), 'end': (9, 4)}
+
+class Maze(cmd.Cmd):
+    """
+    A maze game. (cmd.Cmd)
+
+    Class Attributes:
+    directions: Abbreviations for movement directions. (dict of str: str)
+
+    Attributes:
+    map: What directions you can move from each cell in the maze. (list of list)
+    start: The starting coordinates of the player. (tuple)
+
+    Methods:
+    do_east: Move to the east. (bool)
+    do_north: Move to the north. (bool)
+    do_south: Move to the couth. (bool)
+    do_west: Move to the west. (bool)
+    move: Move in the maze. (bool)
+    ow: Bump into a wall. (None)
+    show_directions: Show the ways the player can move. (None)
+
+    Overridden Methods:
+    preloop
+    """
+
+    directions = {'e': 'east', 'n': 'north', 's': 'south', 'w': 'west'}
+
+    def do_east(self, arg):
+        """Move to the east. Add an integer argument to move multiple times."""
+        return self.move('e', 1, 0, arg)
+
+    def do_north(self, arg):
+        """Move to the north. Add an integer argument to move multiple times."""
+        return self.move('n', 0, -1, arg)
+
+    def do_south(self, arg):
+        """Move to the south. Add an integer argument to move multiple times."""
+        return self.move('s', 0, 1, arg)
+
+    def do_west(self, arg):
+        """Move to the west. Add an integer argument to move multiple times."""
+        return self.move('w', -1, 0, arg)
+
+    def move(self, check, delta_x, delta_y, arg):
+        """
+        Move in the maze. (bool)
+
+        Parameters:
+        check: The character for checking for valid directions. (str)
+        delta_x: How much to move on the x axis. (int)
+        delta_y: How much to move on the y axis. (int)
+        arg: The arguments passed with the movement command. (str)
+        """
+        # Check for moving multiple times.
+        if arg.isdigit():
+            times = int(arg)
+        else:
+            times = 1
+        for movement in range(times):
+            # Check for a valid move
+            if check not in self.current:
+                self.ow()
+                break
+            # Update the player's postion.
+            self.x += delta_x
+            self.y += delta_y
+            self.current = self.map[self.y][self.x]
+            print('moving...')
+            # Check for solving the maze.
+            if (self.x, self.y) == self.end:
+                print('You made it out of the maze!')
+                return True
+        # Show the next location if not solved.
+        self.show_directions()
+
+    def ow(self):
+        """Bump into a wall. (None)"""
+        print('Ow! You bump into a wall.')
+
+    def preloop(self):
+        """Prep for the command loop. (None)"""
+        # Extract the maze data.
+        self.map = MAZE['map']
+        self.x = MAZE['start'][0]
+        self.y = MAZE['start'][1]
+        self.end = MAZE['end']
+        # Set the starting location for validity checks.
+        self.current = self.map[self.y][self.x]
+        # Print an introduction.
+        print('You are in a maze.')
+        print('You have a torch, but it barely lights past the end of your hand.')
+        # Show the current location.
+        self.show_directions()
+
+    def show_directions(self):
+        """Show the ways the player can move. (None)"""
+        # Get the valid moves.
+        direction_words = [self.directions[direction] for direction in self.current]
+        # Select message based on number of valid moves.
+        if len(self.current) == 1:
+            message = 'You are in a dead end. You can only move to the {}.'
+        elif len(self.current) == 2:
+            message = 'You are in a hallway. You can move {} or {}.'
+        elif len(self.current) == 3:
+            message = 'You are at an intersection. You can move {}, {}, or {}.'
+        elif len(self.current) == 4:
+            message = 'You are in an open space. You can move {}, {}, {}, or {}'
+        # Display the message.
+        print(message.format(*direction_words))
+
+if __name__ == '__main__':
+    maze = Maze()
+    maze.cmdloop()
+[/python]
+
+So let's walk through the program. At the start, we have some global constants defining the maze. The map of the maze is a matrix of the locations in the maze, and what moves are possible from each location. The full maze definition includes the map, the starting square, and the ending square. Ideally, we would have a bunch of files with different mazes and a way to load them, or an algorithm that generated mazes. I just put in a simple maze for a test case.
+
+We create a Maze class, inheriting from the Cmd class. There is one class attribute, which just stores abbreviations for the possible moves. This is used in the show_directions method, which gives a description of the possible moves from the current location.
+
+The first methods are four do_ methods, one for each possible move. These will be called when the user enters one of the directions to move. Each one gives details of the movement to the move method that does the actual moving: the character for checking the movement is valid, the change in the x coordinate, the change in the y coordinate, and any arguments that were passed with the movement command.
+
+Next is the move method that does the actual movement. It first checks the arguments the used typed in to see if they typed an integer. If so, that is taken a number of times to move. Otherwise the argument is ignored and the player moves once. The validity of each move is checked against the map definition. If the move invalid movement is stopped with a message. If the move is valid the current coordinates and location information is updated, and a message indicating successful movement is printed. Finally, there is a check to see if the maze has been solved by getting to the defined end of the maze.
+
+Note that if the maze is solved, the move method returns True, otherwise it returns None. The return value of the move method is returned by each of the do_ methods. If a do_ method returns True, command processing is stopped. If it returns something that evaluates to False (like None), command processing continues. So in this case, command processing continues until the maze is solved.
+
+Next is an ow method, which is used for an invalid move. Its one print statement doesn't really merit its own method, but I put it there for potential expansion. Maybe later in development you lose a hit point when you hit a wall or something.
+
+Now we get to the preloop method. This is the only method from the parent Cmd class that we mess with. It is a stub method in Cmd that does nothing. It is run before the command processing loop starts, and is there to allow set up of any attributes needed for command processing. The Maze class uses it to read the maze from the global variables, to set up the starting location for the player, and to give some introductory text.
+
+Finally there is the aforementioned show_directions method that gives the user information about the current location.
+
+To get the whole thing rolling, we create an instance of the Maze class and call its cmdloop method. The cmdloop method is inherited from the Cmd class. It handles a loop of printing a prompt, getting a response from the user, parsing the response, calling the appropriate method, and checking the return value to see if it should stop processing commands. It also handles pre and post loop processing. If you play the game you can even type 'help north'. It will give you the docstring of the do_north method as help text. All of this is handled by code in the Cmd class, we don't have to mess with it at all.
+
+Now, there's a lot more we can mess with. So in the next post we will look at a lot of ways we can use the attributes and methods provide by the Cmd class to simplify our code and improve our maze program.

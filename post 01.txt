@@ -1,0 +1,157 @@
+This tutorial is about command list interfaces, or CLIs. These were some of the earliest of computer interfaces. They are easier to put together than GUIs: you can put them together with some print and input statements, rather than needing a whole host of class instances for the various parts of the interface. This makes them useful for prototyping, test environments, and new programmers.
+
+CLIs involve the user typing in some text, and getting some text back in response. They may also interact with other systems. For example, you can use the console on most systems to interact with the file system, changing the contents of your hard drive. I'm going to start with a simple menu system, where you are given a list of choices and can only type one character to cause one of the choices to run. Later on I will show you a more versatile command based system.
+
+All of the programs I am going to reference in this tutorial are available on [url=https://github.com/ichabod801/cli_tutorial Github]. This post uses the menu_funcs.py program.
+
+So we'll start with three functions that we want to put into a menu. Each of these functions recreates a Monty Python skit.
+
+[python]
+import random
+import time
+
+def argument():
+    """
+    An intellectual discussion. (None)
+
+    No it isn't.
+    """
+    # Prep the argument.
+    start = time.perf_counter()
+    user_text = input('Please state an assertion to argue about: ')
+    # Argue for two minutes
+    while time.perf_counter() - start < 120:
+        # Automatically gainsay whatever the user says. 
+        user_words = user_text.lower().split()
+        for negative in ('no', 'not', "isn't", "ain't", "doesn't", "wasn't"):
+            if negative in user_words:
+                user_text = input('Yes it is. ')
+        else:
+            user_text = input("No it isn't. ")
+    # Say goodbye.
+    print("I'm sorry, your five minutes is up.")
+    input('Press Enter to continue: ')
+
+def knight():
+    """Some vigorous exercise. (None)"""
+    # Set up the combat.
+    limbs = ['other leg', 'leg', 'other arm', 'arm']
+    combat = False
+    # Loop while the knight has limbs.
+    while limbs:
+        # None shall pass.
+        if not combat:
+            print('None shall pass.')
+        # Get the user's action.
+        user_action = input('What do you do? ')
+        # Attacking chops off a limb.
+        if user_action.lower() == 'attack':
+            print("Excellent attack. You chop off the black knight's {}".format(limbs.pop()))
+            combat = True
+        # Anything else after attacking provokes an attack.
+        elif combat:
+            print('The black knight attacks, but you easily block his blow.')
+    # Say goodbye.
+    input('Press Enter to call it a draw: ')
+
+def spam():
+    """Fine dining. (None)"""
+    # Get the user's order.
+    food = input('What would you like to eat? ')
+    # Prepare the meal.
+    pre_spam = ['spam'] * random.randint(2, 4)
+    post_spam = ['spam'] * random.randint(0, 2) + ['and spam.']
+    meal = pre_spam + [food] + post_spam
+    # Deliver the food and say goodbye.
+    print('Here is your ' + ', '.join(meal))
+    input('Press Enter to eat a wafer thin wafer and explode: ')
+[/python]
+
+As I said, we can make a menu with just some simple print and input statements (we also need a loop). Here is a function that implements a very simple method with just those tools:
+
+[python]
+def simple_menu():
+    """
+    The most basic of menu functions. (None)
+    """
+    # Loop until the user quits.
+    while True:
+        # Show the menu.
+        print('A: Have an intellectual discussion.')
+        print('B: Get some vigorous exercise.')
+        print('C: Enjoy some fine dining.')
+        print('D: Quit.')
+        # Get the user's choice.
+        choice = input('Please enter your choice: ').lower()
+        # Process the user's choice.
+        if choice == 'a':
+            argument()
+        elif choice == 'b':
+            knight()
+        elif choice == 'c':
+            spam()
+        elif choice == 'd':
+            break
+        else:
+            # Handle invalid choices.
+            print('That is not a valid choice.')
+    # Be polite.
+    print('Have a nice day.')
+[/python]
+
+Everything is in a while loop, until the user selects the quit option and we break out of the loop (line 22). Each time through the loop we print the menu with a bunch of print statements, get the user's choice with an input statement, and then use an if/elif/else block to call the appropriate function based on the user's choice. The final else handles anything the user types in that doesn't fit one of our pre-defined choices.
+
+This works, but it is very specific. It only works for one set of functions. We can't simply reuse it, we would have to rewrite it every time we want to use it. But this is just a mapping between choices (A), descriptions (Have an intellectual discussion), and functions (argument). Why not make a function that accepts such a mapping, and generates the menu from the mapping? Then we can pass any menu definition we want to the menu. Here is such a function:
+
+[python]
+from collections import OrderedDict
+import string
+
+
+def menu(menu_data, prompt = 'Please enter your choice: '):
+    """
+    A generic menu function. (None)
+
+    The menu_data dictionary keys are strings that are shown in the menu. The 
+    values of the dictionary should be functions that are called when the menu
+    item is chosen. If the order of the menu items is important, this should
+    be an OrderedDict from collections.
+
+    Parameters:
+    menu_data: The menu items and actions for the menu. (dict of str: callable)
+    prompt: The text for getting a menu choice from the user. (str)
+    """
+    # Set up the menu.
+    menu_choices = OrderedDict(zip(string.ascii_uppercase, menu_data.keys()))
+    quit_char = string.ascii_uppercase[len(menu_data)]
+    # Loop until the user quits.
+    while True:
+        # Display the menu.
+        for char, menu_text in menu_choices.items():
+            print('{}: {}'.format(char, menu_text))
+        print('{}: Quit\n'.format(quit_char))
+        # Get the response.
+        choice = input(prompt).upper()
+        # Handle the response.
+        if choice == quit_char:
+            break
+        elif choice in menu_choices:
+            menu_data[menu_choices[choice]]()
+        else:
+            print('That is not a valid choice.')
+    # Say goodbye.
+    print('Have a nice day.')
+
+if __name__ == '__main__':
+    monty_menu = [('Have an intellectual discussion.', argument), ('Get some vigorous exercise.', knight),
+        ('Enjoy some fine dining.', spam)]
+    menu(OrderedDict(monty_menu))
+[/python]
+
+Now we have a generic menu function. It takes the menu data as a parameter. The data is a dictionary of the functions to be called keyed to the descriptions to be shown on the menu. Note that we don't pass in the letters of the choices. The menu function sets the letters for us on the first line. That means if we pass a normal dictionary of menu data, we can't be sure which letters will go with which letters. I got around that by passing the menu data as an OrderedDict from the collections package. Also note that I did not pass in a quit option. That is created automatically by the menu function as the quit_char variable.
+
+The loop is another [inline]while True:[/inline] loop. First it displays the menu, using OrderedDict it created with the characters in the menu. Then it prints the quit option last. Getting the user's choice is a simple input statement (with upper for case insensitivity). Then it just has to check for the quit char, a valid choice, or an invalid choice. When it gets a valid menu choice, it gets the description from the menu_choices dict using the user's input, then gets the function to call from the menu_data dictionary using the description it just got. Note that the actual body of the menu function is shorter than the body of the simple_menu function, for a menu with only four options.
+
+Now either of these functions can be used to create a tree of menus, where choosing an item in the first menu will bring you two a second menu. For the simple menu function, you just write another menu function and call it. For the general menu function, you just have to write a helper function that sets up the menu data for the second menu, and then uses it to call the menu function again. That helper function goes into the menu_data that describes the first menu. In either case, once the sub-menu function is done processing, it will just pass control back to the first menu function.
+
+While the menu function is better than the simple_menu function, there are still some problems with it. The big one is that it has no state. Generally when you have an interface, its for some object or system in the background, and the interface allows you to manipulate what's in the background. Like you might have a menu in a game to allow you to buy equipment for your character. So you are modifying the character's inventory (and wallet) every time through the loop. You can do this with function by passing a character object back and forth between the functions. But there's just one function call in menu: [inline]menu_data[menu_choices[choice]]()[/inline]. To make that generalizable, you'd need to use *args and **kwargs, or maybe pass a dictionary back and forth. But then you might be passing around a lot of unnecessary information, if you functions don't all work on the same parts of the state being passed around. A better solution (IMHO) is something that quietly maintains it's own state: a class. Next we'll look at making a menu class. If you are not up to speed on classes, check out the [url=https://python-forum.io/Thread-Class-Basics Class Tutorial] in the tutorials section first.

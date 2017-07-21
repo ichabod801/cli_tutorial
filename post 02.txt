@@ -1,0 +1,110 @@
+This is just some random idea I came up with for a simple menu that has a state that needs to be tracked, so I can highlight the use of a class for making a menu (the code for this post is in menu_class.py on the GitHub repository):
+
+[python]
+"""
+menu_class.py
+
+A simple menu example with a class.
+
+Classes:
+Menu: A basic menu interface. (object)
+"""
+
+from collections import OrderedDict
+from string import ascii_uppercase
+
+class Menu(object):
+    """
+    A basic menu interface for an integer graph. (object)
+
+    Class Attributes:
+    menu_data: The menu descriptions and function names. (dict of str: str)
+    primes: The prime numbers up to the first one over 100. (list of int)
+
+    Attributes:
+    choices: The letter choices and their descriptions. (OderedDict of str: str)
+    numbers: The current sequence of numbers. (list of int)
+    prompt: The text displayed when requesting a user's choice. (str)
+    quit_char: The letter choice for exiting the menu loop. (str)
+
+    Methods:
+    collatz: Collatz the last number in the sequence and append it. (None)
+    fibonacci: Add the last two numbers in the sequence and append the sum. (None)
+    menu_loop: Loop through menu choices, performing the relevant actions. (None)
+    prime: Append the next highest prime to the sequence. (None)
+
+    Overridden Methods:
+    __init__
+    """
+
+    # The menu descriptions and function names.
+    menu_data = OrderedDict([('Add the last two numbers.', 'fibonacci'), 
+        ('Get the next prime number.', 'prime'), ('Collatz the last number.', 'collatz')])
+    # All of the prime numbers up to just over 100.
+    primes = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89]
+    primes += [97, 101]
+
+    def __init__(self, prompt='Please enter your choice: '):
+        """
+        Set up the class attributes. (None)
+
+        Parameters:
+        prompt: The text displayed when requesting a user's choice. (str)
+        """
+        # Store the parameters.
+        self.prompt = prompt
+        # Set up the menu.
+        self.choices = OrderedDict(zip(ascii_uppercase, self.menu_data.keys()))
+        self.quit_char = ascii_uppercase[len(self.menu_data)]
+        # Set up the sequence information.
+        self.numbers = [0, 1]
+
+    def collatz(self):
+        """Collatz the last number in the sequence and append it. (None)"""
+        # Triple and add one to odd numbers.
+        if self.numbers[-1] % 2:
+            self.numbers.append(self.numbers[-1] * 3 + 1)
+        # Halve even numbers.
+        else:
+            self.numbers.append(self.numbers[-1] // 2)
+
+    def fibonacci(self):
+        """Add the last two numbers in the sequence and append the sum. (None)"""
+        self.numbers.append(self.numbers[-1] + self.numbers[-2])
+
+    def menu_loop(self):
+        """Loop through menu choices, performing the relevant actions. (None)"""
+        # Loop until the user quits or the sequence goes over 100.
+        while self.numbers[-1] < 100:
+            # Display the menu.
+            for char, menu_text in self.choices.items():
+                print('{}: {}'.format(char, menu_text))
+            print('{}: Quit\n'.format(self.quit_char))
+            # Get the response.
+            choice = input(self.prompt).upper()
+            # Handle the response.
+            if choice == self.quit_char:
+                break
+            elif choice in self.choices:
+                method = self.menu_data[self.choices[choice]]
+                getattr(self, method)()
+                print('The current number is {}.'.format(self.numbers[-1]))
+            else:
+                print('That is not a valid choice.')
+        # Clean up.
+        print('Have a nice day.')
+
+    def prime(self):
+        """Append the next highest prime to the sequence. (None)"""
+        self.numbers.append([p for p in self.primes if p > self.numbers[-1]][0])
+
+if __name__ == '__main__':
+    menu = Menu()
+    menu.menu_loop()
+[/python]
+
+The Menu class we see above closely matches the menu function we saw in the last post. It has a class attribute named menu_data, which stores similar data about the menu to be displayed. The menu choices are created the same way (but in the __init__ method). The main loop (in the menu_loop method) displays the menu the same way, gets the user input in the same way, processes the menu choices in (mostly) the same way, and exits the loop in the same way. Instead of unbound functions, it now calls bound methods of the class. Now they are stored by name rather than directly, and we have to use getattr to get them before calling them.
+
+But now we have some state information. There is the primes class attribute, which is used by the prime method. We also have a numbers attribute that is manipulated by the tree methods. There are three methods we use: collatz, fibonacci, and primes. Each one append to the numbers attribute. Collatz modifies the number as in the [url=https://en.wikipedia.org/wiki/Collatz_conjecture Collatz Conjecture], fibonacci adds the last two numbers togther as in the [url=https://en.wikipedia.org/wiki/Fibonacci_number Fibonacci Sequence], and prime just appends the smallest [url=https://en.wikipedia.org/wiki/Prime_number prime number] that is greater than the last item in the sequence.
+
+So the menu lets you choose which way to get the next number, appends that number to the sequence, and tells you what the number is. It works fine as a menu which maintains a state. However, we have lost the ability to generalize with this class. The while loop is no longer a [inline]while True:[/inline] loop, it has a condition that is specific to this menu. Likewise, after the method selected by the user is called, the class prints out information that is specific to this menu. So we've taken a step forward in terms of having a state, but we've taken a step back in terms of generalization. This is certainly fixable, and I will fix it. But first I want to show you a different kind of CLI, a command interface. As it turns out, there is a command based CLI package that comes with Python. I'm going to show you how it works, and how it works will inform how I fix the Menu class.
